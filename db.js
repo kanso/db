@@ -83,7 +83,7 @@ var httpData = function (xhr, type, s) {
  * Returns a function for handling ajax responses from jquery and calls
  * the callback with the data or appropriate error.
  *
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api private
  */
 
@@ -96,9 +96,7 @@ function onComplete(options, callback) {
                 resp = httpData(req, "json");
             }
             catch (e) {
-                return exports._invoke_request_callback(
-                    e, null, options, callback
-                );
+                return callback(e);
             }
         }
         else {
@@ -120,9 +118,7 @@ function onComplete(options, callback) {
             exports.emit('unauthorized', req);
         }
         if (req.status === 200 || req.status === 201 || req.status === 202) {
-            exports._invoke_request_callback(
-                null, resp, options, callback
-            );
+            callback(null, resp);
         }
         else if (resp.error || resp.reason) {
             var err = new Error(resp.reason || resp.error);
@@ -130,26 +126,34 @@ function onComplete(options, callback) {
             err.reason = resp.reason;
             err.code = resp.code;
             err.status = req.status;
-            exports._invoke_request_callback(
-                err, null, options, callback
-            );
+            callback(err);
         }
         else {
             // TODO: map status code to meaningful error message
             var err2 = new Error('Returned status code: ' + req.status);
             err2.status = req.status;
-            exports._invoke_request_callback(err2, null, options, callback);
+            callback(err2);
         }
     };
 }
 
 
 /**
- * Attempts to guess the database name and design doc id from the current URL
+ * Attempts to guess the database name and design doc id from the current URL,
+ * or the loc paramter. Returns an object with 'db', 'design_doc' and 'root'
+ * properties, or null for a URL not matching the expected format (perhaps
+ * behing a vhost).
  *
+ * You wouldn't normally use this function directly, but use `db.current()` to
+ * return a DB object bound to the current database instead.
+ *
+ * @name guessCurrent([loc])
+ * @param {String} loc - An alternative URL to use instead of window.location
+ *     (optional)
  * @returns {Object|null} - An object with 'db', 'design_doc' and 'root'
- *                          properties, or null for a URL not matching the
- *                          expected format (perhaps behing a vhost)
+ *     properties, or null for a URL not matching the
+ *     expected format (perhaps behing a vhost)
+ * @api public
  */
 
 exports.guessCurrent = function (loc) {
@@ -177,10 +181,11 @@ exports.guessCurrent = function (loc) {
 };
 
 /**
+ * Converts an object to a string of properly escaped URL parameters.
  *
- * @name escapeUrlParams(s)
- * @param {Object} obj An object containing url parameters, with
- *          parameter names stored as property names (or keys).
+ * @name escapeUrlParams([obj])
+ * @param {Object} obj - An object containing url parameters, with
+ *       parameter names stored as property names (or keys).
  * @returns {String}
  * @api public
  */
@@ -197,10 +202,12 @@ exports.escapeUrlParams = function (obj) {
 };
 
 /**
- * Encodes a document id or view, list or show name.
+ * Encodes a document id or view, list or show name. This also will make sure
+ * the forward-slash is not escaped for documents with id's beginning with
+ * "\_design/".
  *
  * @name encode(str)
- * @param {String} str
+ * @param {String} str - the name or id to escape
  * @returns {String}
  * @api public
  */
@@ -243,7 +250,7 @@ exports.stringifyQuery = function (query) {
  *
  * @name request(options, callback)
  * @param {Object} options
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
@@ -263,7 +270,7 @@ exports.request = function (options, callback) {
  *
  * @name createDatabase(name, callback)
  * @param {String} name
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
@@ -284,7 +291,7 @@ exports.createDatabase = function (name, callback) {
  *
  * @name deleteDatabase(name, callback)
  * @param {String} name
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
@@ -304,6 +311,10 @@ exports.deleteDatabase = function (name, callback) {
  * If you're running behind a virtual host you'll need to set up
  * appropriate rewrites for a DELETE request to '/' either turning off safe
  * rewrites or setting up a new vhost entry.
+ *
+ * @name allDbs(callback)
+ * @param {Function} callback(err,response)
+ * @api public
  */
 
 exports.allDbs = function (callback) {
@@ -321,7 +332,7 @@ exports.allDbs = function (callback) {
  *
  * @name newUUID(cacheNum, callback)
  * @param {Number} cacheNum (optional, default: 1)
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
@@ -365,8 +376,25 @@ function DB(url) {
 
 /**
  * Creates a new DB object with methods operating on the database at 'url'
+ *
+ * The DB object also exposes the same module-level methods (eg, createDatabase)
+ * so it can be used in-place of the db exports object, for example:
+ *
+ * ```javascript
+ * var db = require('db').use('mydb');
+ *
+ * db.createDatabase('example', function (err, resp) {
+ *     // do something
+ * });
+ * ```
+ *
+ * @name use(url)
+ * @param {String} url - The url to bind the new DB object to
+ * @returns {DB}
+ * @api public
  */
 
+// TODO: handle full urls, not just db names
 exports.use = function (url) {
     /* Force leading slash; make absolute path */
     return new DB((url.substr(0, 1) !== '/' ? '/' : '') + url);
@@ -377,6 +405,21 @@ exports.use = function (url) {
  * Should work reliably unless running behind a virtual host.
  *
  * Throws an error if the current database url cannot be detected.
+ *
+ * The DB object also exposes the same module-level methods (eg, createDatabase)
+ * so it can be used in-place of the db exports object, for example:
+ *
+ * ```javascript
+ * var db = require('db').current();
+ *
+ * db.createDatabase('example', function (err, resp) {
+ *     // do something
+ * });
+ * ```
+ *
+ * @name current()
+ * @returns {DB}
+ * @api public
  */
 
 exports.current = function () {
@@ -398,11 +441,11 @@ exports.current = function () {
  * are passed to the callback, with the first argument of the callback
  * reserved for any exceptions that occurred (node.js style).
  *
- * @name getRewrite(path, [q], callback)
+ * @name DB.getRewrite(name, path, [q], callback)
  * @param {String} name - the name of the design doc
  * @param {String} path
  * @param {Object} q (optional)
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
@@ -425,13 +468,13 @@ DB.prototype.getRewrite = function (name, path, /*optional*/q, callback) {
 /**
  * Queries all design documents in the database.
  *
- * @name allDocs([q], callback)
+ * @name DB.allDesignDocs([q], callback)
  * @param {Object} q - query parameters to pass to /_all_docs (optional)
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
-DB.prototype.allDesignDocs = function (q, callback) {
+DB.prototype.allDesignDocs = function (/*optional*/q, callback) {
     if (!callback) {
         callback = q;
         q = {};
@@ -443,22 +486,23 @@ DB.prototype.allDesignDocs = function (q, callback) {
 
 
 /**
- * Queries all documents in the database.
+ * Queries all documents in the database (include design docs).
  *
- * @name allDocs([q], callback)
+ * @name DB.allDocs([q], callback)
  * @param {Object} q - query parameters to pass to /_all_docs (optional)
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
-DB.prototype.allDocs = function (q, callback) {
+DB.prototype.allDocs = function (/*optional*/q, callback) {
     if (!callback) {
         callback = q;
         q = {};
     }
     var req = {
         url: this.url + '/_all_docs',
-        data: exports.stringifyQuery(q)
+        data: exports.stringifyQuery(q),
+        expect_json: true
     };
     exports.request(req, callback);
 };
@@ -469,29 +513,20 @@ DB.prototype.allDocs = function (q, callback) {
  * passed to the callback, with the first argument of the callback reserved
  * for any exceptions that occurred (node.js style).
  *
- * @name getDoc(id, [q, options], callback)
+ * @name DB.getDoc(id, [q], callback)
  * @param {String} id
  * @param {Object} q (optional)
- * @param {Object} options (optional)
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
-DB.prototype.getDoc = function (id, /*opt*/q, /*opt*/options, callback) {
+DB.prototype.getDoc = function (id, /*optional*/q, callback) {
     if (!id) {
         throw new Error('getDoc requires an id parameter to work properly');
     }
     if (!callback) {
-        if (!options) {
-            /* Arity = 2: Omits q, options */
-            callback = q;
-            options = {};
-            q = {};
-        } else {
-          /* Arity = 3: Omits options */
-            callback = options;
-            options = {};
-        }
+        callback = q;
+        q = {};
     }
     var req = {
         url: this.url + '/' + exports.encode(id),
@@ -507,20 +542,14 @@ DB.prototype.getDoc = function (id, /*opt*/q, /*opt*/options, callback) {
  * passed to the callback, with the first argument of the callback reserved
  * for any exceptions that occurred (node.js style).
  *
- * @name saveDoc(doc, [options], callback)
+ * @name DB.saveDoc(doc, callback)
  * @param {Object} doc
- * @param {Object} options (optional)
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
-DB.prototype.saveDoc = function (doc, /*optional*/options, callback) {
+DB.prototype.saveDoc = function (doc, callback) {
     var method, url = this.url;
-    if (!callback) {
-        /* Arity = 2: Omits options */
-        callback = options;
-        options = {};
-    }
     if (doc._id === undefined) {
         method = "POST";
     }
@@ -544,23 +573,18 @@ DB.prototype.saveDoc = function (doc, /*optional*/options, callback) {
  * passed to the callback, with the first argument of the callback reserved
  * for any exceptions that occurred (node.js style).
  *
- * @name removeDoc(doc, [options], callback)
+ * @name DB.removeDoc(doc, callback)
  * @param {Object} doc
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
-DB.prototype.removeDoc = function (doc, /*optional*/options, callback) {
+DB.prototype.removeDoc = function (doc, callback) {
     if (!doc._id) {
         throw new Error('removeDoc requires an _id field in your document');
     }
     if (!doc._rev) {
         throw new Error('removeDoc requires a _rev field in your document');
-    }
-    if (!callback) {
-        /* Arity = 2: Omits options */
-        callback = options;
-        options = {};
     }
     var req = {
         type: 'DELETE',
@@ -576,27 +600,18 @@ DB.prototype.removeDoc = function (doc, /*optional*/options, callback) {
  * passed to the callback, with the first argument of the callback reserved
  * for any exceptions that occurred (node.js style).
  *
- * @name getView(view, [q], callback)
- * @param {String} name - the name of the design doc to use
- * @param {String} view
+ * @name DB.getView(name, view, [q], callback)
+ * @param {String} name - name of the design doc to use
+ * @param {String} view - name of the view
  * @param {Object} q (optional)
- * @param {Object} options (optional)
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
-DB.prototype.getView = function (name, view, /*opt*/q, /*opt*/options, callback) {
+DB.prototype.getView = function (name, view, /*opt*/q, callback) {
     if (!callback) {
-        if (!options) {
-            /* Arity = 2: Omits q, options */
-            callback = q;
-            options = {};
-            q = {};
-        } else {
-          /* Arity = 3: Omits options */
-            callback = options;
-            options = {};
-        }
+        callback = q;
+        q = {};
     }
     var viewname = exports.encode(view);
     var req = {
@@ -617,12 +632,12 @@ DB.prototype.getView = function (name, view, /*opt*/q, /*opt*/options, callback)
  * argument of the callback reserved for any exceptions that occurred
  * (node.js style).
  *
- * @name getList(list, view, [q], callback)
- * @param {String} name - the name of the design doc to use
- * @param {String} list
- * @param {String} view
+ * @name DB.getList(name, list, view, [q], callback)
+ * @param {String} name - name of the design doc to use
+ * @param {String} list - name of the list function
+ * @param {String} view - name of the view to apply the list function to
  * @param {Object} q (optional)
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
@@ -648,12 +663,12 @@ DB.prototype.getList = function (name, list, view, /*optional*/q, callback) {
  * argument of the callback reserved for any exceptions that occurred
  * (node.js style).
  *
- * @name getShow(show, docid, [q], callback)
- * @param {String} name - the name of the design doc to use
- * @param {String} show
- * @param {String} docid
+ * @name DB.getShow(name, show, docid, [q], callback)
+ * @param {String} name - name of the design doc to use
+ * @param {String} show - name of the show function
+ * @param {String} docid - id of the document to apply the show function to
  * @param {Object} q (optional)
- * @param {Function} callback
+ * @param {Function} callback(err,response)
  * @api public
  */
 
@@ -675,39 +690,17 @@ DB.prototype.getShow = function (name, show, docid, /*optional*/q, callback) {
 
 
 /**
- * Get all documents (including design docs).
- *
- * @name all([q], callback)
- * @param {Object} q (optional)
- * @param {Function} callback
- * @api public
- */
-
-DB.prototype.all = function (/*optional*/q, callback) {
-    if (!callback) {
-        callback = q;
-        q = {};
-    }
-    var req = {
-        url: this.url + '/_all_docs',
-        data: exports.stringifyQuery(q),
-        expect_json: true
-    };
-    exports.request(req, callback);
-};
-
-
-/**
  * Fetch a design document from CouchDB.
  *
- * @name getDesignDoc(name, callback)
- * @param name The name of (i.e. path to) the design document.
+ * @name DB.getDesignDoc(name, callback)
+ * @param name The name of (i.e. path to) the design document without the
+ *     preceeding "\_design/".
  * @param callback The callback to invoke when the request completes.
  * @api public
  */
 
 DB.prototype.getDesignDoc = function (name, callback) {
-    this.getDoc('_design/' + name, options, function (err, ddoc) {
+    this.getDoc('_design/' + name, function (err, ddoc) {
         if (err) {
             return callback(err);
         }
@@ -718,17 +711,12 @@ DB.prototype.getDesignDoc = function (name, callback) {
 /**
  * Gets information about the database.
  *
- * @name info([options], callback)
- * @param {Object} options (optional)
- * @param {Function} callback
+ * @name DB.info(callback)
+ * @param {Function} callback(err,response)
  * @api public
  */
 
-DB.prototype.info = function (/*optional*/options, callback) {
-    if (!callback) {
-        callback = options;
-        options = {};
-    }
+DB.prototype.info = function (callback) {
     var req = {
         url: this.url,
         expect_json: true,
@@ -740,33 +728,25 @@ DB.prototype.info = function (/*optional*/options, callback) {
 /**
  * Listen to the changes feed for a database.
  *
- * Options:
- * __db__ - the db url to use (defaults to current app's db)
- * __filter__ - the filter function to use
- * __since__ - the update_seq to start listening from
- * __heartbeat__ - the heartbeat time (defaults to 10 seconds)
- * __include_docs__ - whether to include docs in the results
+ * __Options:__
+ * * _filter_ - the filter function to use
+ * * _since_ - the update_seq to start listening from
+ * * _heartbeat_ - the heartbeat time (defaults to 10 seconds)
+ * * _include_docs_ - whether to include docs in the results
  *
  * Returning false from the callback will cancel the changes listener
  *
- * @name changes([options], callback)
- * @param {Object} options (optional)
- * @param {Function} callback
+ * @name DB.changes([q], callback)
+ * @param {Object} q (optional) query parameters (see options above)
+ * @param {Function} callback(err,response)
  * @api public
  */
 
-DB.prototype.changes = function (q, options, callback) {
+// TODO: change this to use an EventEmitter
+DB.prototype.changes = function (/*optional*/q, callback) {
     if (!callback) {
-        if (!options) {
-            /* Arity = 2: Omits q, options */
-            callback = q;
-            options = {};
-            q = {};
-        } else {
-          /* Arity = 3: Omits options */
-            callback = options;
-            options = {};
-        }
+        callback = q;
+        q = {};
     }
 
     var that = this;
@@ -799,11 +779,7 @@ DB.prototype.changes = function (q, options, callback) {
             getChanges(q.since);
         }
         else {
-            var opts = {};
-            if (options.db) {
-                opts.db = db;
-            }
-            that.info(opts, function (err, info) {
+            that.info(function (err, info) {
                 if (err) {
                     return callback(err);
                 }
@@ -822,17 +798,17 @@ DB.prototype.changes = function (q, options, callback) {
  * provide via its second argument; the first argument of the callback
  * is reserved for any exceptions that occurred (node.js style).
  *
- * @name bulkSave(docs, [options], callback)
+ * **Options:**
+ * * *all_or\_nothing* - Require that all documents be saved
+ *   successfully (or saved with a conflict); otherwise roll
+ *   back the operation.
+ *
+ * @name DB.bulkSave(docs, [options], callback)
  * @param {Array} docs An array of documents; each document is an object
  * @param {Object} options (optional) Options for the bulk-save operation.
- *          options.db: The name of the database to use, or false-like
- *              to use Kanso's current database.
- *          options.transactional: Require that all documents be saved
- *              successfully (or saved with a conflict); otherwise roll
- *              back the operation. This uses the 'all_or_nothing' option
- *              provided by CouchDB.
- * @param {Function} callback A function to accept results and/or errors.
- *          Document update conflicts are reported in the results array.
+ * @param {Function} callback(err,response) - A function to accept results
+ *          and/or errors. Document update conflicts are reported in the
+ *          results array.
  * @api public
  */
 
@@ -843,18 +819,14 @@ DB.prototype.bulkSave = function (docs, /*optional*/ options, callback) {
         );
     }
     if (!callback) {
-        /* Arity = 2: Omits options */
         callback = options;
         options = {};
     }
-    var data = {
-        docs: docs,
-        all_or_nothing: !!options.transactional
-    };
+    options.docs = doc;
     var req = {
         type: 'POST',
         url: this.url + '/_bulk_docs',
-        data: JSON.stringify(data),
+        data: JSON.stringify(options),
         processData: false,
         contentType: 'application/json',
         expect_json: true
@@ -871,33 +843,24 @@ DB.prototype.bulkSave = function (docs, /*optional*/ options, callback) {
  * argument; the first argument of the callback is reserved for any
  * exceptions that occurred (node.js style).
  *
- * @name bulkGet(docs, [options], callback)
- * @param {Array} docs An array of documents identifiers (i.e. strings).
- * @param {Object} options (optional) Options for the bulk-read operation.
- *          options.db: The name of the database to use, or false-like
- *              to use Kanso's current database.
- * @param {Function} callback A function to accept results and/or errors.
- *          Document update conflicts are reported in the results array.
+ * @name DB.bulkGet(keys, [q], callback)
+ * @param {Array} keys An array of documents identifiers (i.e. strings).
+ * @param {Object} q (optional) Query parameters for the bulk-read operation.
+ * @param {Function} callback(err,response) - A function to accept results
+ *          and/or errors. Document update conflicts are reported in the
+ *          results array.
  * @api public
  */
 
-DB.prototype.bulkGet = function (keys, /*opt*/ q, /*opt*/ options, callback) {
+DB.prototype.bulkGet = function (keys, /*optional*/ q, callback) {
     if (keys && !_.isArray(keys)) {
         throw new Error(
             'bulkGet requires that _id values be supplied as a list'
         );
     }
     if (!callback) {
-        if (!options) {
-            /* Arity = 2: Omits q, options */
-            callback = q;
-            options = {};
-            q = {};
-        } else {
-          /* Arity = 3: Omits options */
-            callback = options;
-            options = {};
-        }
+        callback = q;
+        q = {};
     }
 
     /* Encode every query-string option:

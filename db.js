@@ -120,6 +120,10 @@ function onComplete(options, callback) {
         if (req.status === 200 || req.status === 201 || req.status === 202) {
             callback(null, resp);
         }
+        else if (!resp) {
+            // connection lost and req.status is probably 0
+            callback(new Error('Connection lost'));
+        }
         else if (resp.error || resp.reason) {
             var err = new Error(resp.reason || resp.error);
             err.error = resp.error;

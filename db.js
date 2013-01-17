@@ -931,6 +931,61 @@ DB.prototype.bulkSave = function (docs, /*optional*/ options, callback) {
     exports.request(req, callback);
 };
 
+/**
+ * Call an update handler. 
+ * This are functions that clients can request to invoke server-side logic 
+ * that will create or update a document. 
+ *
+ * README: http://wiki.apache.org/couchdb/Document_Update_Handlers
+ *
+ * __Options:__
+ * * _params_ - the url query params
+ * * _body_   - the POST/PUT body
+ *
+ * @name DB.callUpdate(name, update, [docid], [q], callback)
+ * @param {String} name - name of the design doc to use
+ * @param {String} update - name of the update handler function
+ * @param {String} docid (optional) - id of the document to apply the update function to
+ * @param {Object} q (optional)
+ * @param {Function} callback(err, response)
+ */
+DB.prototype.callUpdate = function (name, update, /*optional*/ docid, /*optional*/ q, callback) {
+    if (!callback) {
+        if (!q) {          
+          callback = docid;
+          docid = null;
+          q = {};
+        } else {
+          if (typeof docid == 'object') {
+            q = docid;
+            docid = null;
+          } else {
+            callback = q;
+            q = {};
+          }
+        }
+    }
+    try {
+        var data = exports.stringifyQuery(q.body || {});
+    }
+    catch (e) {
+        return callback(e);
+    }
+    
+    var req_method = (docid ? 'PUT' : 'POST');
+    var updatename = exports.encode(update);
+    
+    var update_url = this.url + '/_design/' +
+        exports.encode(name) + '/_update/' + exports.encode(updatename) +
+        (docid ? '/' + exports.encode(docid): '');
+    
+    var req = {
+        type: req_method,
+        url: update_url + exports.escapeUrlParams(q.params),
+        data: data
+    };
+    exports.request(req, callback);
+};
 
 /**
  * Requests a list of documents, using only a single HTTP request.

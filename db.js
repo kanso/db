@@ -957,6 +957,7 @@ DB.prototype.callUpdate = function (name, update, /*optional*/ docid, /*optional
           q = {};
         } else {
           if (typeof docid == 'object') {
+            callback = q;
             q = docid;
             docid = null;
           } else {

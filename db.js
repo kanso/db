@@ -167,7 +167,7 @@ exports.guessCurrent = function (loc) {
      * http://wiki.apache.org/couchdb/HTTP_database_API
      */
 
-    var re = /\/([a-z][a-z0-9_\$\(\)\+-\/]*)\/_design\/([^\/]+)\//;
+    var re = /\/(([a-z][a-z0-9_\$\(\)\+-\/]|(?:%2F))*)\/_design\/([^\/]+)\//;
     var match = re.exec(loc.pathname);
 
     if (match) {

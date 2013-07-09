@@ -394,9 +394,23 @@ function DB(url) {
  * @api public
  */
 
-// TODO: handle full urls, not just db names
 exports.use = function (url) {
-    /* Force leading slash; make absolute path */
+    /* Convert all urls into an absolute path. */
+
+    // From https://gist.github.com/jlong/2428561
+    // We use the DOM to get us info about the url 
+    var parse = document.createElement('a');
+    parse.href = url;
+
+    // First check if it's already absolute:
+    if (parse.href != url) {
+        // We are on the same host
+        // Now ensure we have a relative root-path
+        if (url[0] != '/') parse.href = '/' + url;
+    }
+
+    // Instantiate DB with absolute path
+    url = parse.href;
     return new DB(url);
 };
 

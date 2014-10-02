@@ -257,7 +257,7 @@ exports.stringifyQuery = function (query) {
 exports.request = function (options, callback) {
     options.complete = onComplete(options, callback);
     options.dataType = 'json';
-    $.ajax(options);
+    return $.ajax(options);
 };
 
 
@@ -279,7 +279,7 @@ exports.createDatabase = function (name, callback) {
         type: 'PUT',
         url: '/' + exports.encode(name.replace(/^\/+/, ''))
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 /**
@@ -301,7 +301,7 @@ exports.deleteDatabase = function (name, callback) {
         type: 'DELETE',
         url: '/' + exports.encode(name.replace(/^\/+/, ''))
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -322,7 +322,7 @@ exports.allDbs = function (callback) {
         type: 'GET',
         url: '/_all_dbs'
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -351,7 +351,7 @@ exports.newUUID = function (cacheNum, callback) {
         data: {count: cacheNum},
         expect_json: true
     };
-    exports.request(req, function (err, resp) {
+    return exports.request(req, function (err, resp) {
         if (err) {
             return callback(err);
         }
@@ -467,7 +467,7 @@ DB.prototype.getRewrite = function (name, path, /*optional*/q, callback) {
         url: this.url + '/_design/' + exports.encode(name) + '/_rewrite' + path,
         data: data
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -516,7 +516,7 @@ DB.prototype.allDocs = function (/*optional*/q, callback) {
         data: data,
         expect_json: true
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -551,7 +551,7 @@ DB.prototype.getDoc = function (id, /*optional*/q, callback) {
         expect_json: true,
         data: data
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -589,7 +589,7 @@ DB.prototype.saveDoc = function (doc, callback) {
         contentType: 'application/json',
         expect_json: true
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 /**
@@ -615,7 +615,7 @@ DB.prototype.removeDoc = function (doc, callback) {
         url: this.url + '/' + exports.encode(doc._id) +
              '?rev=' + exports.encode(doc._rev)
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -652,7 +652,7 @@ DB.prototype.getView = function (name, view, /*opt*/q, callback) {
         expect_json: true,
         data: data
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -695,7 +695,7 @@ DB.prototype.getSpatialView = function (name, view, q, callback) {
         expect_json: true,
         data: data
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -733,7 +733,7 @@ DB.prototype.getList = function (name, list, view, /*optional*/q, callback) {
             '/_list/' + listname + '/' + viewname,
         data: data
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 /**
@@ -770,7 +770,7 @@ DB.prototype.getShow = function (name, show, docid, /*optional*/q, callback) {
         url: show_url + (docid ? '/' + exports.encode(docid): ''),
         data: data
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -806,7 +806,7 @@ DB.prototype.info = function (callback) {
         url: this.url,
         expect_json: true,
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -928,7 +928,7 @@ DB.prototype.bulkSave = function (docs, /*optional*/ options, callback) {
         contentType: 'application/json',
         expect_json: true
     };
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 
@@ -1000,7 +1000,7 @@ DB.prototype.bulkGet = function (keys, /*optional*/ q, callback) {
         });
     }
 
-    exports.request(req, callback);
+    return exports.request(req, callback);
 };
 
 

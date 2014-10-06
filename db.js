@@ -120,7 +120,7 @@ function onComplete(options, callback) {
         if (req.status === 200 || req.status === 201 || req.status === 202) {
             callback(null, resp);
         }
-        else if (resp.error || resp.reason) {
+        else if (resp && (resp.error || resp.reason)) {
             var err = new Error(resp.reason || resp.error);
             err.error = resp.error;
             err.reason = resp.reason;
@@ -129,9 +129,11 @@ function onComplete(options, callback) {
             callback(err);
         }
         else {
-            // TODO: map status code to meaningful error message
-            var err2 = new Error('Returned status code: ' + req.status);
+            var err2 = new Error('Returned status code: ' + req.status +
+                                 ' (' + req.statusText + ')');
             err2.status = req.status;
+            err2.reason = req.statusText;
+            err2.error = req.statusText;
             callback(err2);
         }
     };

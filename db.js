@@ -31,7 +31,8 @@
 
 
 var events = require('events'),
-    _ = require('underscore')._;
+    _ = require('underscore')._,
+    jQuery = require('jquery');
 
 
 /**
@@ -62,17 +63,17 @@ var httpData = function (xhr, type, s) {
         data = xml ? xhr.responseXML : xhr.responseText;
 
     if (xml && data.documentElement.nodeName === "parsererror") {
-        $.error("parsererror");
+        jQuery.error("parsererror");
     }
     if (s && s.dataFilter) {
         data = s.dataFilter(data, type);
     }
     if (typeof data === "string") {
         if (type === "json" || !type && ct.indexOf("json") >= 0) {
-            data = $.parseJSON(data);
+            data = jQuery.parseJSON(data);
         }
         else if (type === "script" || !type && ct.indexOf("javascript") >= 0) {
-            $.globalEval(data);
+            jQuery.globalEval(data);
         }
     }
     return data;
@@ -257,7 +258,7 @@ exports.stringifyQuery = function (query) {
 exports.request = function (options, callback) {
     options.complete = onComplete(options, callback);
     options.dataType = 'json';
-    $.ajax(options);
+    jQuery.ajax(options);
 };
 
 

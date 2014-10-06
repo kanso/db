@@ -18,10 +18,6 @@ Add `db` to your dependencies section in `kanso.json`.
 
 > run `kanso install` to fetch the package
 
-You also need __jQuery__ to be included on your page, since this module uses
-jQuery.ajax to make requests.
-
-
 ### Events
 
 The db module is an EventEmitter. See the

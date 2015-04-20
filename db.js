@@ -91,42 +91,44 @@ function onComplete(options, callback) {
     return function (req) {
         var resp;
         var ctype = req.getResponseHeader('Content-Type');
-        if (ctype === 'application/json' || ctype === 'text/json') {
-            try {
-                resp = httpData(req, "json");
-            }
-            catch (e) {
-                return callback(e);
-            }
-        }
-        else {
-            if (options.expect_json) {
-                try {
-                    resp = httpData(req, "json");
-                }
-                catch (ex) {
-                    return callback(
-                        new Error('Expected JSON response, got ' + ctype)
-                    );
-                }
-            }
-            else {
-                resp = req.responseText;
-            }
-        }
         if (req.status === 401) {
             exports.emit('unauthorized', req);
         }
-        if (req.status === 200 || req.status === 201 || req.status === 202) {
-            callback(null, resp);
-        }
-        else if (resp.error || resp.reason) {
-            var err = new Error(resp.reason || resp.error);
-            err.error = resp.error;
-            err.reason = resp.reason;
-            err.code = resp.code;
-            err.status = req.status;
-            callback(err);
+        else if (req.status === 200 || req.status === 201 || req.status === 202) {
+            if (ctype === 'application/json' || ctype === 'text/json') {
+                try {
+                    resp = httpData(req, "json");
+                }
+                catch (e) {
+                    return callback(e);
+                }
+            }
+            else {
+                if (options.expect_json) {
+                    try {
+                        resp = httpData(req, "json");
+                    }
+                    catch (ex) {
+                        return callback(
+                            new Error('Expected JSON response, got ' + ctype)
+                        );
+                    }
+                }
+                else {
+                    resp = req.responseText;
+                }
+            }
+
+            if (resp.error || resp.reason) {
+                var err = new Error(resp.reason || resp.error);
+                err.error = resp.error;
+                err.reason = resp.reason;
+                err.code = resp.code;
+                err.status = req.status;
+                callback(err);
+            } else {
+                callback(null, resp);
+            }
         }
         else {
             // TODO: map status code to meaningful error message
@@ -397,7 +399,7 @@ function DB(url) {
 // TODO: handle full urls, not just db names
 exports.use = function (url) {
     /* Force leading slash; make absolute path */
-    return new DB(url);
+    return new DB((url.substr(0, 1) !== '/' ? '/' : '') + url);
 };
 
 /**

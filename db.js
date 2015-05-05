@@ -725,19 +725,37 @@ DB.prototype.getSpatialView = function (name, view, q, callback) {
  * @param {String} name - name of the design doc to use
  * @param {String} list - name of the list function
  * @param {String} view - name of the view to apply the list function to
+ * @param {String} other_ddoc - name of other design doc
  * @param {Object} q (optional)
  * @param {Function} callback(err,response)
  * @api public
  */
 
 // TODO: run list function client-side?
-DB.prototype.getList = function (name, list, view, /*optional*/q, callback) {
+DB.prototype.getList = function (name, list, view, /*optional*/ other_ddoc, /*optional*/q, callback) {
     if (!callback) {
-        callback = q;
+      if (!q) {
+        // (name, list, view, callback)
+        callback = other_ddoc;
         q = {};
+        other_ddoc = undefined;
+      } else {
+        callback = q;
+        if(typeof other_ddoc === "object") {
+          // (name, list, view, q, callback)
+          q = other_ddoc;
+          other_ddoc = undefined;
+        } else {
+          // (name, list, view, other_ddoc, callback)
+          q = {};
+        }
+      }
     }
     var listname = exports.encode(list);
     var viewname = exports.encode(view);
+    if (other_ddoc) {
+      viewname = exports.encode(other_ddoc) + '/' + viewname;
+    }
     try {
         var data = exports.stringifyQuery(q);
     }

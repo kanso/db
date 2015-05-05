@@ -258,7 +258,7 @@ for any exceptions that occurred (node.js style).
 * __callback(err,response)__ - _Function_
 
 
-#### DB.getList(name, list, view, [q], callback)
+#### DB.getList(name, list, view, [otherddoc], [q], callback)
 
 Transforms and fetches a view through a list from the database the app
 is running on. Results are passed to the callback, with the first
@@ -268,6 +268,7 @@ argument of the callback reserved for any exceptions that occurred
 * __name__ - _String_ - name of the design doc to use
 * __list__ - _String_ - name of the list function
 * __view__ - _String_ - name of the view to apply the list function to
+* __otherddoc__ - _String_ - (optional) name of the other design document
 * __q__ - _Object_ - (optional)
 * __callback(err,response)__ - _Function_
 

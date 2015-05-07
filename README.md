@@ -336,6 +336,26 @@ is reserved for any exceptions that occurred (node.js style).
 * __options__ - _Object_ - (optional) Options for the bulk-save operation.
 * __callback(err,response)__ - _Function_ - A function to accept results and/or errors. Document update conflicts are reported in the results array.
 
+#### DB.callUpdate(name, update, [docid], [q], callback)
+
+Call an update handler. 
+This are functions that clients can request to invoke server-side logic 
+that will create or update a document. 
+
+README: http://wiki.apache.org/couchdb/Document_Update_Handlers
+ 
+
+ 
+**Parameters:**
+* __name__ - _String_ - name of the design doc to use
+* __update__ - _String_ - name of the update handler function
+* __docid__ - _String_ - (optional) id of the document to apply the update function to
+* __q__ - _Object_ - (optional) Options for the invoke update-handler operation.
+* __callback(err, response)__ - _Function_ - A function to accept results and/or errors. Document update conflicts are reported in the results array.
+
+**q Options:**
+* __params__ - the url query params
+* __body__   - the POST/PUT body 
 
 #### DB.bulkGet(keys, [q], callback)
 
